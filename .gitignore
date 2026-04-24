@@ -1,0 +1,22 @@
+# Credenciales
+config/db.php
+
+# Cargas del administrador (salvo la de ejemplo)
+public/assets/uploads/platos/*
+!public/assets/uploads/platos/.gitkeep
+
+# Backups de base de datos
+/var/backups/
+*.sql.gz
+
+# Entorno local
+.vscode/
+.idea/
+*.log
+*.swp
+.DS_Store
+Thumbs.db
+
+# Dependencias (reservado por si en el futuro se añade Composer)
+vendor/
+composer.lock
