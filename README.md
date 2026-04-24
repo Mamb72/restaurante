@@ -138,9 +138,11 @@ Este repositorio corresponde al **Proyecto Final** del ciclo formativo de Grado 
 - [x] **Bloque 2** — Arquitectura técnica
 - [x] **Bloque 3** — Modelo de datos
 - [x] **Bloque 4** — Estructura de archivos y convenciones
+- [x] **Bloque 5** — Setup del entorno de desarrollo
 - [ ] **Desarrollo** — implementación de backend y frontend
 - [ ] **Pruebas** — funcionales y de integración
 - [ ] **Memoria final y defensa**
+
 
 ## Proyección futura
 
