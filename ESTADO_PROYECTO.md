@@ -65,6 +65,39 @@ Archivos creados:
 
 **Verificación:** `http://restaurante.local/carta` muestra la carta agrupada por categorías con destacados, badges de alérgenos (rojos) y etiquetas dietéticas (verdes). ✓
 
+### ✅ Bloque 6.4 — Sesiones de mesa y primer pedido del cliente
+Archivos creados:
+- `app/models/Mesa.php` — modelo con `obtenerPorToken()` y `obtenerPorId()`.
+- `app/models/SesionMesa.php` — modelo con `obtenerActivaPorMesa()`, `abrir()`, `cerrar()`, `pedirCuenta()`, y patrón get-or-create `obtenerOAbrir()`.
+- `app/models/Pedido.php` — modelo con `crear()`, `obtenerPorSesion()`, `cambiarEstado()`, `obtenerActivosParaCocina()`.
+- `app/models/LineaPedido.php` — modelo con `crear()`, `obtenerPorPedido()`, `obtenerPorSesion()`, `cambiarEstado()`.
+- `app/controllers/MesaController.php` — métodos `entrar()` (entrada por QR), `cartaMesa()` (carta con botones), `miMesa()` (pedido en curso + historial).
+- `app/controllers/PedidoController.php` — endpoints AJAX `anadir()`, `quitar()`, `confirmar()` con validación CSRF y transacción atómica.
+- `app/views/cliente/carta_mesa.php` — carta con botones AJAX, contador en tiempo real y toast de feedback.
+- `app/views/cliente/mi_mesa.php` — pedido en curso + historial de pedidos confirmados + total + botón confirmar.
+- `app/views/errores/mesa_no_valida.php` — pantalla de error si el token QR no es válido.
+- `db/datos_mesas.sql` — 5 mesas demo con tokens hexadecimales de 32 caracteres.
+
+**Rutas registradas:**
+- `GET /mesa/{token}` — entrada por QR (abre/recupera sesión, redirige a carta).
+- `GET /carta-mesa` — carta con botones de añadir.
+- `GET /mi-mesa` — pedido en curso + historial.
+- `POST /pedido/anadir` — añadir plato al carrito (AJAX, JSON).
+- `POST /pedido/quitar` — quitar 1 unidad del carrito (AJAX, JSON).
+- `POST /pedido/confirmar` — convertir carrito en pedido + líneas en BD (AJAX, JSON, transacción atómica).
+
+**Decisiones técnicas defendibles:**
+- Tokens QR de 128 bits de entropía → no adivinables por fuerza bruta.
+- Carrito en `$_SESSION` (volátil) vs Pedido en BD (persistente) → sin basura en BD si el cliente abandona.
+- Snapshot de precios al añadir al carrito → el cliente paga lo que vio.
+- CSRF token regenerado por sesión, validado en cada POST que modifica estado (`hash_equals`).
+- Transacciones SQL en `confirmar()` (`beginTransaction` / `commit` / `rollBack`) → atomicidad ACID, sin pedidos huérfanos.
+- Una sesión de mesa puede tener N pedidos → soporta el flujo real de "rondas" en un restaurante.
+- Cada línea de pedido tiene estado propio → cocina puede progresar plato a plato independientemente.
+- Validación de input con `filter_input` + comprobación del plato en BD antes de añadir al carrito.
+
+**Verificación:** flujo completo cliente probado en navegador (QR → carta → carrito → confirmar → pedido en BD), con varias rondas de pedidos en una misma sesión. Endpoints AJAX validados con `curl` para los 5 escenarios de error: sin sesión (401), CSRF inválido (403), input malformado (400), plato inexistente (404), plato no disponible (409). ✓
+
 ---
 
 ## Cosas que hay que hacer al retomar
@@ -73,28 +106,28 @@ Archivos creados:
 
 1. Verificar que el entorno sigue funcionando: `http://restaurante.local/` debe mostrar la página de bienvenida.
 2. Si se ha apagado el equipo: comprobar que Apache y MariaDB están activos (`sudo systemctl status apache2 mariadb`).
+3. Comprobar que el flujo de cliente sigue OK: entrar a `http://restaurante.local/mesa/a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6` y verificar que la carta y el carrito funcionan.
 
 ---
-## Próxima fase: Bloque 6.4 — Sesiones de mesa y primer pedido
+
+## Próxima fase: Bloque 6.5 — Panel de cocina con polling AJAX
 
 Lo que toca implementar:
 
-1. **Modelo `Mesa`** (`app/models/Mesa.php`) con método `obtenerPorToken(string $token)`.
-2. **Modelo `SesionMesa`** (`app/models/SesionMesa.php`) con métodos para abrir, recuperar y cerrar sesiones de mesa.
-3. **Modelo `Pedido`** y **`LineaPedido`** con la lógica básica de carrito.
-4. **Controlador `MesaController`** con:
-   - `entrar(array $params)` — recibe `{token}`, abre/recupera sesión, redirige a carta de mesa.
-   - `miMesa(array $params)` — muestra el pedido en curso.
-5. **Vista `cliente/carta_mesa.php`** — versión de la carta con botones "Añadir al pedido".
-6. **Vista `cliente/mi_mesa.php`** — pedido en curso con líneas, total y botón confirmar.
-7. **Endpoints AJAX** para añadir/quitar líneas sin recargar página.
-8. **Nuevas rutas:**
-   - `GET /mesa/{token}` → `MesaController@entrar`
-   - `GET /mi-mesa` → `MesaController@miMesa`
-   - `POST /pedido/anadir` → endpoint AJAX
-   - `POST /pedido/confirmar` → cerrar pedido, pasar a cocina
+1. **Modelo `Usuario`** (`app/models/Usuario.php`) con autenticación bcrypt (login/logout para personal de cocina y administradores).
+2. **Controlador `AuthController`** con `mostrarLogin()`, `procesarLogin()` y `logout()`.
+3. **Vista `auth/login.php`** — formulario sencillo de acceso para el personal.
+4. **Controlador `CocinaController`** con:
+   - `panel()` — vista principal con todos los pedidos activos (PENDIENTE/EN_PREPARACION/LISTO).
+   - `actualizarEstadoLinea()` — endpoint AJAX para marcar líneas como EN_PREPARACION/LISTO/SERVIDO.
+   - `pedidosActivosJson()` — endpoint AJAX que devuelve el estado actual cada N segundos (polling).
+5. **Vista `cocina/panel.php`** — tarjetas de pedidos agrupadas por mesa, con botones por línea para cambiar estado.
+6. **Polling cada 3-5 segundos** desde JavaScript para mostrar pedidos nuevos sin recargar manualmente.
+7. **Datos demo** (`db/datos_usuarios.sql`) con un usuario `cocina` y otro `admin` con contraseñas hasheadas con bcrypt.
+8. **Middleware básico de autenticación** — comprobación de sesión activa en `CocinaController`, redirige a login si no hay usuario autenticado.
 
-**Resultado esperado al final de la fase 6.4:** un cliente entra a `http://restaurante.local/mesa/MESA-001-TOKEN`, ve la carta con botones de añadir, mete platos, ve su pedido en "Mi mesa" y lo confirma.
+**Resultado esperado al final de la fase 6.5:** un cocinero entra a `/login`, se autentica, ve un panel con todos los pedidos pendientes, los va marcando "preparando" → "listo" → "servido", y el cliente en su `/mi-mesa` ve los badges de estado actualizarse en tiempo real (vía polling).
+
 ---
 
 ## Convenciones del proyecto (recordatorio)
@@ -116,6 +149,7 @@ Lo que toca implementar:
 - Subidas de imágenes en `public/assets/uploads/platos/` con `.htaccess` que bloquea ejecución de PHP.
 - Soft delete con campo `activo` en tablas principales (no borrado físico).
 - Patrón MVC manual + Router + Singleton para BD.
+- CSS provisional y feo durante todo el desarrollo funcional. Diseño visual final en una **Fase 7 dedicada**, una vez que el sistema esté completo (cliente + cocina + admin). Multi-tenancy descartado por alcance.
 
 ---
 
@@ -124,4 +158,5 @@ Lo que toca implementar:
 Los **4 documentos de `docs/`** son la fuente autoritativa. Si algo entra en conflicto con ellos, prevalecen los documentos. Cualquier cambio mayor debe registrarse aumentando la versión en su tabla "Historial de cambios".
 
 ---
-*Actualizado al cierre del Bloque 6.3 para facilitar la retomada del proyecto en un chat nuevo.*
+
+*Actualizado al cierre del Bloque 6.4 para facilitar la retomada del proyecto en un chat nuevo.*
