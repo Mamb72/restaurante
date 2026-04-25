@@ -62,7 +62,10 @@ final class MesaController extends Controller
         if (!isset($_SESSION['carrito'])) {
             $_SESSION['carrito'] = [];
         }
-
+	// Generar token CSRF si no existe (válido durante toda la sesión de mesa)
+        if (!isset($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
         // Redirigir a la página de bienvenida de mesa
         $this->redirigir('/mi-mesa');
     }
