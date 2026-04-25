@@ -24,6 +24,8 @@ $router = new Router();
 
 $router->get('/', ['ClienteController', 'inicio']);
 $router->get('/carta', ['ClienteController', 'carta']);
+$router->get('/mesa/{token}', ['MesaController', 'entrar']);
+$router->get('/mi-mesa', ['MesaController', 'miMesa']);
 
 // (En las siguientes fases iremos añadiendo aquí más rutas)
 
