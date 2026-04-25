@@ -23,6 +23,7 @@ require BASE_PATH . '/app/core/Router.php';
 $router = new Router();
 
 $router->get('/', ['ClienteController', 'inicio']);
+$router->get('/carta', ['ClienteController', 'carta']);
 
 // (En las siguientes fases iremos añadiendo aquí más rutas)
 
