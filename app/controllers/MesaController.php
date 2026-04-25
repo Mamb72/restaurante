@@ -2,9 +2,6 @@
 /**
  * app/controllers/MesaController.php
  * Controlador de las acciones ligadas a una mesa concreta.
- *
- * Punto de entrada del cliente: escanea el QR pegado en la mesa,
- * el navegador abre /mesa/{token}, y desde aquí se gestiona todo.
  */
 
 declare(strict_types=1);
@@ -24,7 +21,6 @@ final class MesaController extends Controller
 
         $token = $params['token'] ?? '';
 
-        // Validación básica del formato del token
         if (strlen($token) !== 32 || !ctype_xdigit($token)) {
             $this->vista('errores/mesa_no_valida', [
                 'titulo'  => 'Mesa no encontrada',
@@ -44,37 +40,31 @@ final class MesaController extends Controller
             return;
         }
 
-        // Abrir o recuperar sesión activa
         $sesionMesaModel = new SesionMesa();
         $sesion = $sesionMesaModel->obtenerOAbrir((int) $mesa['id']);
 
-        // Iniciar sesión PHP del navegador si aún no está iniciada
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
 
-        // Guardar datos de la mesa en la sesión PHP del navegador
         $_SESSION['mesa_id']        = (int) $mesa['id'];
         $_SESSION['mesa_numero']    = (int) $mesa['numero'];
         $_SESSION['sesion_mesa_id'] = (int) $sesion['id'];
 
-        // Inicializar carrito vacío si no existe
         if (!isset($_SESSION['carrito'])) {
             $_SESSION['carrito'] = [];
         }
 
-        // Generar token CSRF si no existe (válido durante toda la sesión de mesa)
         if (!isset($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         }
 
-        // Redirigir a la carta de la mesa
         $this->redirigir('/carta-mesa');
     }
 
     /**
-     * Vista temporal para esta fase: muestra que la sesión está abierta.
-     * En la fase 6.4.6 esto mostrará el pedido en curso.
+     * Muestra el estado completo de la mesa: carrito en curso,
+     * historial de pedidos confirmados y total acumulado.
      */
     public function miMesa(array $params): void
     {
@@ -82,18 +72,44 @@ final class MesaController extends Controller
             session_start();
         }
 
-        // Si no hay sesión de mesa activa, redirigir a la home
         if (!isset($_SESSION['sesion_mesa_id'])) {
             $this->redirigir('/');
             return;
         }
 
+        require_once BASE_PATH . '/app/core/Model.php';
+        require_once BASE_PATH . '/app/models/Pedido.php';
+        require_once BASE_PATH . '/app/models/LineaPedido.php';
+
+        $lineaModel = new LineaPedido();
+        $sesionId   = (int) $_SESSION['sesion_mesa_id'];
+
+        // Líneas ya confirmadas (en BD) de toda la sesión.
+        $lineasConfirmadas = $lineaModel->obtenerPorSesion($sesionId);
+
+        $totalConfirmado = 0.0;
+        foreach ($lineasConfirmadas as $l) {
+            $totalConfirmado += (float) $l['precio_unitario'] * (int) $l['cantidad'];
+        }
+
+        // Total del carrito en curso (aún sin confirmar).
+        $totalCarrito = 0.0;
+        $itemsCarrito = 0;
+        foreach ($_SESSION['carrito'] ?? [] as $linea) {
+            $totalCarrito += $linea['cantidad'] * $linea['snapshot']['precio'];
+            $itemsCarrito += $linea['cantidad'];
+        }
+
         $this->vista('cliente/mi_mesa', [
-            'titulo'         => 'Mi mesa',
-            'mesa_numero'    => $_SESSION['mesa_numero'],
-            'sesion_mesa_id' => $_SESSION['sesion_mesa_id'],
-            'carrito'        => $_SESSION['carrito'] ?? [],
-            'csrf_token'     => $_SESSION['csrf_token'] ?? '',
+            'titulo'             => 'Mi mesa — Mesa ' . $_SESSION['mesa_numero'],
+            'mesa_numero'        => $_SESSION['mesa_numero'],
+            'sesion_mesa_id'     => $sesionId,
+            'carrito'            => $_SESSION['carrito'] ?? [],
+            'csrf_token'         => $_SESSION['csrf_token'] ?? '',
+            'items_carrito'      => $itemsCarrito,
+            'total_carrito'      => $totalCarrito,
+            'lineas_confirmadas' => $lineasConfirmadas,
+            'total_confirmado'   => $totalConfirmado,
         ]);
     }
 
@@ -128,7 +144,6 @@ final class MesaController extends Controller
 
         $destacados = $platoModel->obtenerDestacados();
 
-        // Calcular items totales en carrito (para el contador en cabecera)
         $itemsCarrito = 0;
         foreach ($_SESSION['carrito'] ?? [] as $linea) {
             $itemsCarrito += $linea['cantidad'];
