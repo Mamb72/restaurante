@@ -53,6 +53,18 @@ Archivos creados:
 
 **Verificación:** `http://restaurante.local/` muestra la bienvenida; URLs inventadas devuelven 404. ✓
 
+### ✅ Bloque 6.3 — Modelos y carta pública
+Archivos creados:
+- `app/core/Model.php` — clase abstracta base con conexión PDO compartida.
+- `app/models/Categoria.php` — modelo con `obtenerTodasActivas()`.
+- `app/models/Plato.php` — modelo con `obtenerPorCategoria()`, `obtenerDestacados()`, `obtenerPorId()` y métodos privados para alérgenos y etiquetas.
+- `app/controllers/ClienteController.php` — ampliado con método `carta()`.
+- `app/views/cliente/carta.php` — primera vista con datos reales: categorías, destacados, badges de alérgenos y etiquetas dietéticas.
+- `db/datos_demo.sql` — datos de demostración (4 categorías, 11 platos con sus relaciones).
+- Nueva ruta: `GET /carta` registrada en `public/index.php`.
+
+**Verificación:** `http://restaurante.local/carta` muestra la carta agrupada por categorías con destacados, badges de alérgenos (rojos) y etiquetas dietéticas (verdes). ✓
+
 ---
 
 ## Cosas que hay que hacer al retomar
@@ -63,25 +75,26 @@ Archivos creados:
 2. Si se ha apagado el equipo: comprobar que Apache y MariaDB están activos (`sudo systemctl status apache2 mariadb`).
 
 ---
-
-## Próxima fase: Bloque 6.3 — Modelos y carta pública
+## Próxima fase: Bloque 6.4 — Sesiones de mesa y primer pedido
 
 Lo que toca implementar:
 
-1. **Clase `Model` base** en `app/core/Model.php`, con un método para obtener la conexión PDO.
-2. **Modelo `Categoria`** (`app/models/Categoria.php`) con método `obtenerTodasActivas()`.
-3. **Modelo `Plato`** (`app/models/Plato.php`) con métodos:
-   - `obtenerPorCategoria(int $categoriaId): array`
-   - `obtenerDestacados(): array`
-   - `obtenerPorId(int $id): ?array`
-4. **Ampliar `ClienteController`** con:
-   - Método `carta(array $params)` que carga categorías + platos por categoría.
-5. **Vista `cliente/carta.php`** que renderiza la carta agrupada por categorías.
-6. **Datos demo en BD** (`db/datos_demo.sql`): un puñado de platos con sus alérgenos y etiquetas dietéticas.
-7. **Nueva ruta:** `GET /carta` → `ClienteController@carta`.
+1. **Modelo `Mesa`** (`app/models/Mesa.php`) con método `obtenerPorToken(string $token)`.
+2. **Modelo `SesionMesa`** (`app/models/SesionMesa.php`) con métodos para abrir, recuperar y cerrar sesiones de mesa.
+3. **Modelo `Pedido`** y **`LineaPedido`** con la lógica básica de carrito.
+4. **Controlador `MesaController`** con:
+   - `entrar(array $params)` — recibe `{token}`, abre/recupera sesión, redirige a carta de mesa.
+   - `miMesa(array $params)` — muestra el pedido en curso.
+5. **Vista `cliente/carta_mesa.php`** — versión de la carta con botones "Añadir al pedido".
+6. **Vista `cliente/mi_mesa.php`** — pedido en curso con líneas, total y botón confirmar.
+7. **Endpoints AJAX** para añadir/quitar líneas sin recargar página.
+8. **Nuevas rutas:**
+   - `GET /mesa/{token}` → `MesaController@entrar`
+   - `GET /mi-mesa` → `MesaController@miMesa`
+   - `POST /pedido/anadir` → endpoint AJAX
+   - `POST /pedido/confirmar` → cerrar pedido, pasar a cocina
 
-**Resultado esperado al final de la fase 6.3:** entrar a `http://restaurante.local/carta` y ver una carta real con platos agrupados por categorías, mostrando precio, descripción y badges de alérgenos/etiquetas.
-
+**Resultado esperado al final de la fase 6.4:** un cliente entra a `http://restaurante.local/mesa/MESA-001-TOKEN`, ve la carta con botones de añadir, mete platos, ve su pedido en "Mi mesa" y lo confirma.
 ---
 
 ## Convenciones del proyecto (recordatorio)
@@ -111,5 +124,4 @@ Lo que toca implementar:
 Los **4 documentos de `docs/`** son la fuente autoritativa. Si algo entra en conflicto con ellos, prevalecen los documentos. Cualquier cambio mayor debe registrarse aumentando la versión en su tabla "Historial de cambios".
 
 ---
-
-*Generado al cierre del Bloque 6.2 para facilitar la retomada del proyecto en un chat nuevo.*
+*Actualizado al cierre del Bloque 6.3 para facilitar la retomada del proyecto en un chat nuevo.*
