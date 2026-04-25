@@ -30,6 +30,10 @@ $router->post('/pedido/anadir', ['PedidoController', 'anadir']);
 $router->get('/carta-mesa', ['MesaController', 'cartaMesa']);
 $router->post('/pedido/quitar', ['PedidoController', 'quitar']);
 $router->post('/pedido/confirmar', ['PedidoController', 'confirmar']);
+// Autenticación del personal
+$router->get('/login',  ['AuthController', 'mostrarLogin']);
+$router->post('/login', ['AuthController', 'procesarLogin']);
+$router->get('/logout', ['AuthController', 'logout']);
 // (En las siguientes fases iremos añadiendo aquí más rutas)
 
 // --- 4. Resolver la petición ------------------------------------------
