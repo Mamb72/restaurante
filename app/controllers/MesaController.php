@@ -62,12 +62,14 @@ final class MesaController extends Controller
         if (!isset($_SESSION['carrito'])) {
             $_SESSION['carrito'] = [];
         }
-	// Generar token CSRF si no existe (válido durante toda la sesión de mesa)
+
+        // Generar token CSRF si no existe (válido durante toda la sesión de mesa)
         if (!isset($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         }
-        // Redirigir a la página de bienvenida de mesa
-        $this->redirigir('/mi-mesa');
+
+        // Redirigir a la carta de la mesa
+        $this->redirigir('/carta-mesa');
     }
 
     /**
@@ -91,6 +93,55 @@ final class MesaController extends Controller
             'mesa_numero'    => $_SESSION['mesa_numero'],
             'sesion_mesa_id' => $_SESSION['sesion_mesa_id'],
             'carrito'        => $_SESSION['carrito'] ?? [],
+            'csrf_token'     => $_SESSION['csrf_token'] ?? '',
+        ]);
+    }
+
+    /**
+     * Muestra la carta del restaurante con botones de añadir al pedido.
+     * Solo accesible si hay sesión de mesa activa.
+     */
+    public function cartaMesa(array $params): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        if (!isset($_SESSION['sesion_mesa_id'])) {
+            $this->redirigir('/');
+            return;
+        }
+
+        require_once BASE_PATH . '/app/core/Model.php';
+        require_once BASE_PATH . '/app/models/Categoria.php';
+        require_once BASE_PATH . '/app/models/Plato.php';
+
+        $categoriaModel = new Categoria();
+        $platoModel     = new Plato();
+
+        $categorias = $categoriaModel->obtenerTodasActivas();
+
+        $platosPorCategoria = [];
+        foreach ($categorias as $cat) {
+            $platosPorCategoria[$cat['id']] = $platoModel->obtenerPorCategoria((int) $cat['id']);
+        }
+
+        $destacados = $platoModel->obtenerDestacados();
+
+        // Calcular items totales en carrito (para el contador en cabecera)
+        $itemsCarrito = 0;
+        foreach ($_SESSION['carrito'] ?? [] as $linea) {
+            $itemsCarrito += $linea['cantidad'];
+        }
+
+        $this->vista('cliente/carta_mesa', [
+            'titulo'             => 'Carta — Mesa ' . $_SESSION['mesa_numero'],
+            'mesa_numero'        => $_SESSION['mesa_numero'],
+            'categorias'         => $categorias,
+            'platosPorCategoria' => $platosPorCategoria,
+            'destacados'         => $destacados,
+            'csrf_token'         => $_SESSION['csrf_token'] ?? '',
+            'items_carrito'      => $itemsCarrito,
         ]);
     }
 }

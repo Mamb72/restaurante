@@ -27,6 +27,7 @@ $router->get('/carta', ['ClienteController', 'carta']);
 $router->get('/mesa/{token}', ['MesaController', 'entrar']);
 $router->get('/mi-mesa', ['MesaController', 'miMesa']);
 $router->post('/pedido/anadir', ['PedidoController', 'anadir']);
+$router->get('/carta-mesa', ['MesaController', 'cartaMesa']);
 // (En las siguientes fases iremos añadiendo aquí más rutas)
 
 // --- 4. Resolver la petición ------------------------------------------
