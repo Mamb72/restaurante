@@ -8,7 +8,6 @@
  * 3. Define las rutas.
  * 4. Delega en el Router para resolver la petición actual.
  */
-
 declare(strict_types=1);
 
 // --- 1. Configuración global ------------------------------------------
@@ -16,24 +15,36 @@ require dirname(__DIR__) . '/config/config.php';
 
 // --- 2. Clases del núcleo ---------------------------------------------
 require BASE_PATH . '/app/core/Database.php';
+require BASE_PATH . '/app/core/Model.php';
 require BASE_PATH . '/app/core/Controller.php';
 require BASE_PATH . '/app/core/Router.php';
+require BASE_PATH . '/app/core/Auth.php';
 
 // --- 3. Definición de rutas -------------------------------------------
 $router = new Router();
 
-$router->get('/', ['ClienteController', 'inicio']);
-$router->get('/carta', ['ClienteController', 'carta']);
-$router->get('/mesa/{token}', ['MesaController', 'entrar']);
-$router->get('/mi-mesa', ['MesaController', 'miMesa']);
-$router->post('/pedido/anadir', ['PedidoController', 'anadir']);
-$router->get('/carta-mesa', ['MesaController', 'cartaMesa']);
-$router->post('/pedido/quitar', ['PedidoController', 'quitar']);
-$router->post('/pedido/confirmar', ['PedidoController', 'confirmar']);
+// Cliente público
+$router->get('/',              ['ClienteController', 'inicio']);
+$router->get('/carta',         ['ClienteController', 'carta']);
+
+// Cliente con mesa (entrada por QR)
+$router->get('/mesa/{token}',  ['MesaController', 'entrar']);
+$router->get('/carta-mesa',    ['MesaController', 'cartaMesa']);
+$router->get('/mi-mesa',       ['MesaController', 'miMesa']);
+
+// Pedidos del cliente (AJAX)
+$router->post('/pedido/anadir',     ['PedidoController', 'anadir']);
+$router->post('/pedido/quitar',     ['PedidoController', 'quitar']);
+$router->post('/pedido/confirmar',  ['PedidoController', 'confirmar']);
+
 // Autenticación del personal
-$router->get('/login',  ['AuthController', 'mostrarLogin']);
-$router->post('/login', ['AuthController', 'procesarLogin']);
-$router->get('/logout', ['AuthController', 'logout']);
+$router->get('/login',   ['AuthController', 'mostrarLogin']);
+$router->post('/login',  ['AuthController', 'procesarLogin']);
+$router->get('/logout',  ['AuthController', 'logout']);
+
+// Panel de cocina
+$router->get('/cocina',  ['CocinaController', 'panel']);
+
 // (En las siguientes fases iremos añadiendo aquí más rutas)
 
 // --- 4. Resolver la petición ------------------------------------------

@@ -14,15 +14,8 @@
 
 declare(strict_types=1);
 
-final class Usuario
+final class Usuario extends Model
 {
-    private PDO $db;
-
-    public function __construct()
-    {
-        $this->db = Database::getConnection();
-    }
-
     /**
      * Busca un usuario activo por su email.
      * Devuelve el array completo (incluye hash_password) o null si no existe.
@@ -30,18 +23,21 @@ final class Usuario
      * IMPORTANTE: este método devuelve el hash de la contraseña porque
      * lo necesita verificarCredenciales(). NO se debe pasar el resultado
      * directamente a una vista.
+     *
+     * @return array<string, mixed>|null
      */
     public function buscarPorEmail(string $email): ?array
     {
-        $sql = 'SELECT id, nombre, email, hash_password, rol, activo, creado_en
-                FROM usuarios
-                WHERE email = :email
-                  AND activo = TRUE
-                LIMIT 1';
+        $sql = '
+            SELECT id, nombre, email, hash_password, rol, activo, creado_en
+            FROM usuarios
+            WHERE email = :email
+              AND activo = TRUE
+            LIMIT 1
+        ';
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([':email' => $email]);
-
+        $stmt->execute(['email' => $email]);
         $fila = $stmt->fetch();
 
         return $fila === false ? null : $fila;
@@ -51,18 +47,21 @@ final class Usuario
      * Busca un usuario activo por su id.
      * NO devuelve el hash de la contraseña: pensado para usar en vistas
      * y para repoblar datos del usuario en sesión.
+     *
+     * @return array<string, mixed>|null
      */
     public function buscarPorId(int $id): ?array
     {
-        $sql = 'SELECT id, nombre, email, rol, activo, creado_en
-                FROM usuarios
-                WHERE id = :id
-                  AND activo = TRUE
-                LIMIT 1';
+        $sql = '
+            SELECT id, nombre, email, rol, activo, creado_en
+            FROM usuarios
+            WHERE id = :id
+              AND activo = TRUE
+            LIMIT 1
+        ';
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([':id' => $id]);
-
+        $stmt->execute(['id' => $id]);
         $fila = $stmt->fetch();
 
         return $fila === false ? null : $fila;
@@ -75,6 +74,8 @@ final class Usuario
      *
      * Usa password_verify() (bcrypt) para comparar la contraseña en claro
      * con el hash almacenado. Resistente a ataques de timing.
+     *
+     * @return array<string, mixed>|null
      */
     public function verificarCredenciales(string $email, string $passwordEnClaro): ?array
     {
@@ -85,7 +86,10 @@ final class Usuario
             // tiempo de respuesta sea similar entre "email no existe"
             // y "email existe pero password incorrecta". Mitiga la
             // enumeración de usuarios por timing.
-            password_verify($passwordEnClaro, '$2y$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalido');
+            password_verify(
+                $passwordEnClaro,
+                '$2y$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalido'
+            );
             return null;
         }
 
