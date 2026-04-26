@@ -15,7 +15,6 @@ final class MesaController extends Controller
      */
     public function entrar(array $params): void
     {
-        require_once BASE_PATH . '/app/core/Model.php';
         require_once BASE_PATH . '/app/models/Mesa.php';
         require_once BASE_PATH . '/app/models/SesionMesa.php';
 
@@ -77,7 +76,6 @@ final class MesaController extends Controller
             return;
         }
 
-        require_once BASE_PATH . '/app/core/Model.php';
         require_once BASE_PATH . '/app/models/Pedido.php';
         require_once BASE_PATH . '/app/models/LineaPedido.php';
 
@@ -128,7 +126,6 @@ final class MesaController extends Controller
             return;
         }
 
-        require_once BASE_PATH . '/app/core/Model.php';
         require_once BASE_PATH . '/app/models/Categoria.php';
         require_once BASE_PATH . '/app/models/Plato.php';
 
@@ -157,6 +154,51 @@ final class MesaController extends Controller
             'destacados'         => $destacados,
             'csrf_token'         => $_SESSION['csrf_token'] ?? '',
             'items_carrito'      => $itemsCarrito,
+        ]);
+    }
+
+    /**
+     * GET /mi-mesa/estado.json — endpoint AJAX de polling para el cliente.
+     *
+     * Devuelve solo los datos imprescindibles para refrescar los badges
+     * de estado de las líneas confirmadas. No reenvía precios ni cantidades
+     * porque esos datos no cambian una vez confirmado el pedido.
+     *
+     * Solo accesible si hay sesión de mesa activa: en caso contrario
+     * responde 401 para que el JS deje de hacer polling.
+     */
+    public function estadoSesionJson(array $params): void
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        if (!isset($_SESSION['sesion_mesa_id'])) {
+            $this->json(['ok' => false, 'error' => 'Sin sesión de mesa'], 401);
+            return;
+        }
+
+        require_once BASE_PATH . '/app/models/LineaPedido.php';
+
+        $lineaModel = new LineaPedido();
+        $sesionId   = (int) $_SESSION['sesion_mesa_id'];
+
+        $lineas = $lineaModel->obtenerPorSesion($sesionId);
+
+        // Devolvemos un payload mínimo: lo que el JS necesita para
+        // detectar cambios y actualizar la UI.
+        $salida = array_map(static function (array $l): array {
+            return [
+                'id'           => (int)    $l['id'],
+                'plato_nombre' => (string) $l['plato_nombre'],
+                'estado'       => (string) $l['estado'],
+            ];
+        }, $lineas);
+
+        $this->json([
+            'ok'     => true,
+            'lineas' => $salida,
+            'ts'     => time(),
         ]);
     }
 }

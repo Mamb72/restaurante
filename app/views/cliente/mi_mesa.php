@@ -79,6 +79,10 @@ $totalMesa = $total_carrito + $total_confirmado;
             background: var(--color-tarjeta); padding: 0.8rem 1rem; margin-bottom: 0.6rem;
             border-radius: var(--radio); box-shadow: var(--sombra);
             display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+            transition: background .4s;
+        }
+        .linea.flash-listo {
+            background: #e8f5e9;
         }
         .linea-info { flex: 1; min-width: 0; }
         .linea-nombre { font-weight: 600; margin: 0; }
@@ -99,6 +103,7 @@ $totalMesa = $total_carrito + $total_confirmado;
         .estado {
             display: inline-block; padding: 2px 10px; border-radius: 12px;
             font-size: 0.75rem; font-weight: 600;
+            transition: background .3s, color .3s;
         }
         .estado.pendiente   { background: #fff8e1; color: #e65100; }
         .estado.preparando  { background: #e3f2fd; color: var(--color-info); }
@@ -191,13 +196,13 @@ $totalMesa = $total_carrito + $total_confirmado;
     <?php else: ?>
         <?php foreach ($lineas_confirmadas as $l): ?>
             <?php $subtotal = (float) $l['precio_unitario'] * (int) $l['cantidad']; ?>
-            <div class="linea">
+            <div class="linea linea-confirmada" data-linea-id="<?= (int) $l['id'] ?>">
                 <div class="linea-info">
                     <p class="linea-nombre">
                         <?= (int) $l['cantidad'] ?>× <?= htmlspecialchars($l['plato_nombre']) ?>
                     </p>
                     <p class="linea-detalle">
-                        <?= fmtPrecio((float) $l['precio_unitario']) ?> × ud · <?= badgeEstado($l['estado']) ?>
+                        <?= fmtPrecio((float) $l['precio_unitario']) ?> × ud · <span class="contenedor-badge"><?= badgeEstado($l['estado']) ?></span>
                     </p>
                 </div>
                 <span class="linea-precio"><?= fmtPrecio($subtotal) ?></span>
@@ -233,18 +238,25 @@ $totalMesa = $total_carrito + $total_confirmado;
     <script>
     (function() {
         'use strict';
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        const toast = document.getElementById('toast');
-        let toastTimer = null;
 
+        // ---------- Constantes ----------
+        const URL_ESTADO   = '/mi-mesa/estado.json';
+        const INTERVALO_MS = 5000;
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        const toast     = document.getElementById('toast');
+        let toastTimer  = null;
+
+        // ---------- Toast ----------
         function mostrarToast(msg, esError = false) {
             toast.textContent = msg;
             toast.classList.toggle('error', esError);
             toast.classList.add('visible');
             clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => toast.classList.remove('visible'), 2200);
+            toastTimer = setTimeout(() => toast.classList.remove('visible'), 3000);
         }
 
+        // ---------- Carrito (acciones existentes) ----------
         async function postJSON(url, formData) {
             formData.append('csrf_token', csrfToken);
             const r = await fetch(url, { method: 'POST', body: formData });
@@ -252,8 +264,8 @@ $totalMesa = $total_carrito + $total_confirmado;
         }
 
         document.body.addEventListener('click', async (e) => {
-            const btnQuitar = e.target.closest('.boton-quitar');
-            const btnAnadir = e.target.closest('.boton-anadir-uno');
+            const btnQuitar    = e.target.closest('.boton-quitar');
+            const btnAnadir    = e.target.closest('.boton-anadir-uno');
             const btnConfirmar = e.target.closest('#btn-confirmar');
 
             if (btnQuitar) {
@@ -284,6 +296,100 @@ $totalMesa = $total_carrito + $total_confirmado;
                 }
             }
         });
+
+        // ---------- Polling de estados ----------
+        // Mapea estado -> {clase, etiqueta} para regenerar el badge
+        // sin tener que hacer un round-trip al servidor.
+        const ESTILOS_BADGE = {
+            'PENDIENTE':      { clase: 'pendiente',  etiqueta: '⏳ Pendiente' },
+            'EN_PREPARACION': { clase: 'preparando', etiqueta: '👨‍🍳 Preparando' },
+            'LISTO':          { clase: 'listo',      etiqueta: '✅ Listo' },
+            'SERVIDO':        { clase: 'servido',    etiqueta: '🍽️ Servido' },
+            'ANULADO':        { clase: 'anulado',    etiqueta: '❌ Anulado' },
+        };
+
+        // Estado conocido inicialmente: lo leemos del DOM ya renderizado
+        // por el servidor para no notificar como "nuevo" lo que ya estaba.
+        const estadoConocido = new Map();
+        document.querySelectorAll('.linea-confirmada').forEach((nodo) => {
+            const id = parseInt(nodo.dataset.lineaId, 10);
+            const badge = nodo.querySelector('.estado');
+            // Deducimos el estado a partir de la clase CSS del badge.
+            let estado = 'PENDIENTE';
+            for (const [k, v] of Object.entries(ESTILOS_BADGE)) {
+                if (badge && badge.classList.contains(v.clase)) {
+                    estado = k;
+                    break;
+                }
+            }
+            estadoConocido.set(id, estado);
+        });
+
+        function actualizarBadge(lineaId, nuevoEstado) {
+            const fila = document.querySelector(
+                `.linea-confirmada[data-linea-id="${lineaId}"]`
+            );
+            if (!fila) return;
+            const contenedor = fila.querySelector('.contenedor-badge');
+            if (!contenedor) return;
+            const estilo = ESTILOS_BADGE[nuevoEstado];
+            if (!estilo) return;
+            contenedor.innerHTML =
+                `<span class="estado ${estilo.clase}">${estilo.etiqueta}</span>`;
+
+            // Flash verde discreto si el plato pasa a LISTO.
+            if (nuevoEstado === 'LISTO') {
+                fila.classList.add('flash-listo');
+                setTimeout(() => fila.classList.remove('flash-listo'), 2500);
+            }
+        }
+
+        async function refrescarEstados() {
+            try {
+                const r = await fetch(URL_ESTADO, { credentials: 'same-origin' });
+                if (r.status === 401) {
+                    // Sesión de mesa caducada. No tiene sentido seguir.
+                    return false;
+                }
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const data = await r.json();
+                if (!data.ok) throw new Error('Respuesta no OK');
+
+                let huboCambio = false;
+                for (const linea of data.lineas) {
+                    const idNum    = linea.id;
+                    const anterior = estadoConocido.get(idNum);
+                    if (anterior === undefined) {
+                        // Línea nueva (no estaba al cargar): la registramos.
+                        estadoConocido.set(idNum, linea.estado);
+                        // No la podemos pintar en el DOM porque el HTML
+                        // se regeneró en servidor. Avisamos solo si
+                        // arranca ya en LISTO (poco probable pero posible).
+                        if (linea.estado === 'LISTO') {
+                            mostrarToast('✅ Tu ' + linea.plato_nombre + ' ya está listo');
+                        }
+                        continue;
+                    }
+                    if (anterior !== linea.estado) {
+                        estadoConocido.set(idNum, linea.estado);
+                        actualizarBadge(idNum, linea.estado);
+                        if (linea.estado === 'LISTO') {
+                            mostrarToast('✅ Tu ' + linea.plato_nombre + ' ya está listo');
+                        }
+                        huboCambio = true;
+                    }
+                }
+                return true;
+            } catch (err) {
+                console.error('[polling cliente]', err);
+                return true; // seguimos intentando
+            }
+        }
+
+        // Si no hay líneas confirmadas no arrancamos polling.
+        if (estadoConocido.size > 0) {
+            setInterval(refrescarEstados, INTERVALO_MS);
+        }
     })();
     </script>
 </body>
