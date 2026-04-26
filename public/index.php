@@ -43,7 +43,9 @@ $router->post('/login',  ['AuthController', 'procesarLogin']);
 $router->get('/logout',  ['AuthController', 'logout']);
 
 // Panel de cocina
-$router->get('/cocina',  ['CocinaController', 'panel']);
+$router->get('/cocina',                ['CocinaController', 'panel']);
+$router->get('/cocina/pedidos.json',   ['CocinaController', 'pedidosActivosJson']);
+$router->post('/cocina/linea/estado',  ['CocinaController', 'actualizarEstadoLinea']);
 
 // (En las siguientes fases iremos añadiendo aquí más rutas)
 
