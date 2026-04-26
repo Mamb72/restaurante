@@ -28,9 +28,9 @@ $router->get('/',              ['ClienteController', 'inicio']);
 $router->get('/carta',         ['ClienteController', 'carta']);
 
 // Cliente con mesa (entrada por QR)
-$router->get('/mesa/{token}',     ['MesaController', 'entrar']);
-$router->get('/carta-mesa',       ['MesaController', 'cartaMesa']);
-$router->get('/mi-mesa',          ['MesaController', 'miMesa']);
+$router->get('/mesa/{token}',        ['MesaController', 'entrar']);
+$router->get('/carta-mesa',          ['MesaController', 'cartaMesa']);
+$router->get('/mi-mesa',             ['MesaController', 'miMesa']);
 $router->get('/mi-mesa/estado.json', ['MesaController', 'estadoSesionJson']);
 
 // Pedidos del cliente (AJAX)
@@ -47,6 +47,9 @@ $router->get('/logout',  ['AuthController', 'logout']);
 $router->get('/cocina',                ['CocinaController', 'panel']);
 $router->get('/cocina/pedidos.json',   ['CocinaController', 'pedidosActivosJson']);
 $router->post('/cocina/linea/estado',  ['CocinaController', 'actualizarEstadoLinea']);
+
+// Panel de administrador
+$router->get('/admin',  ['AdminController', 'dashboard']);
 
 // (En las siguientes fases iremos añadiendo aquí más rutas)
 
