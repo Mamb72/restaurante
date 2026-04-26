@@ -2,11 +2,6 @@
 /**
  * public/index.php
  * Punto de entrada único de la aplicación.
- *
- * 1. Carga configuración.
- * 2. Carga las clases del núcleo.
- * 3. Define las rutas.
- * 4. Delega en el Router para resolver la petición actual.
  */
 declare(strict_types=1);
 
@@ -48,8 +43,16 @@ $router->get('/cocina',                ['CocinaController', 'panel']);
 $router->get('/cocina/pedidos.json',   ['CocinaController', 'pedidosActivosJson']);
 $router->post('/cocina/linea/estado',  ['CocinaController', 'actualizarEstadoLinea']);
 
-// Panel de administrador
+// Panel de administrador — Dashboard
 $router->get('/admin',  ['AdminController', 'dashboard']);
+
+// Panel de administrador — Categorías
+$router->get('/admin/categorias',                 ['AdminController', 'categorias']);
+$router->get('/admin/categorias/nueva',           ['AdminController', 'nuevaCategoria']);
+$router->post('/admin/categorias',                ['AdminController', 'crearCategoria']);
+$router->get('/admin/categorias/{id}/editar',     ['AdminController', 'editarCategoria']);
+$router->post('/admin/categorias/{id}',           ['AdminController', 'actualizarCategoria']);
+$router->post('/admin/categorias/{id}/toggle',    ['AdminController', 'toggleCategoria']);
 
 // (En las siguientes fases iremos añadiendo aquí más rutas)
 
